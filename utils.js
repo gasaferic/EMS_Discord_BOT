@@ -14,9 +14,9 @@ module.exports = {
       }
     }
   },
-  getField: function (array, field) {
+  getField: function (array, targetElemID, field) {
     for (var elem of array) {
-      if (elem[field] !== undefined) {
+      if (elem.id === targetElemID && elem[field] !== undefined) {
         return elem[field]
       }
     }
@@ -58,7 +58,7 @@ module.exports = {
       listString = "Nessuno in servizio"
     } else {
       for (var elem of array) {
-        listString += elem.username + ((array.indexOf(elem) !== array.length - 1) ? "," : "")
+        listString += elem.username + ((array.indexOf(elem) !== array.length - 1) ? ", " : "")
       }
     }
     return listString
@@ -79,5 +79,9 @@ module.exports = {
         return rootRoles.get(role).name
       }
     }
+  },
+  updateMessage: function (message, role, updatedArray) {
+    message.embeds[0].fields = this.updateField(message.embeds[0].fields, role,this.getInServizioListString(updatedArray))
+    message.edit(message.embeds[0])
   }
 }

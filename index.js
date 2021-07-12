@@ -9,16 +9,16 @@ const token = process.env['token']
 const gradi = [
   {name:'Direttore', id:'864124622030241813', inServizio: []},
   {name:'Vice-Direttore', id:'864124672588251158', inServizio: []},
-  {name:'Primario', id:'864124672588251158', inServizio: []},
-  {name:'Chirurgo', id:'864124672588251158', inServizio: []},
-  {name:'Dottore', id:'864124672588251158', inServizio: []},
-  {name:'Infermiere', id:'864124672588251158', inServizio: []},
-  {name:'Tirocinante', id:'864124672588251158', inServizio: []},
-  {name:'Volontario', id:'864124672588251158', inServizio: []}
+  {name:'Primario', id:'864124976582754314', inServizio: []},
+  {name:'Chirurgo', id:'864124875165138984', inServizio: []},
+  {name:'Dottore', id:'864124754210324481', inServizio: []},
+  {name:'Infermiere', id:'864087631361212416', inServizio: []},
+  {name:'Volontario', id:'864124762950991892', inServizio: []}
 ]
 
 var currentServer = null;
 var targetChannel = null;
+var embedMessage = null;
 
 client.once('ready', () => {
   console.log('Questo bot è online');
@@ -52,34 +52,32 @@ client.once('ready', () => {
   let messageActionRow = new discordButtons.MessageActionRow()
   messageActionRow.addComponents(clockInButton, clockOutButton)
 
-  targetChannel.send(embedTimbro, messageActionRow);
+  targetChannel.send(embedTimbro, messageActionRow).then(sentMessage => { embedMessage = sentMessage });
 });
 
 
 function timbraInButton(message, clicker) {
   var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, clicker.member._roles));
-  var currentlyInServizio = utils.getField(gradi, 'inServizio')
+  var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, clicker.member._roles), 'inServizio')
 
-  if (utils.isInServizio(currentlyInServizio, clicker.user.id)) { return; }
+  if (currentlyInServizio === undefined || utils.isInServizio(currentlyInServizio, clicker.user.id)) { return; }
 
-  utils.updateGradiInServizio(currentlyInServizio, clicker.user, true)
-
-  message.embeds[0].fields = utils.updateField(message.embeds[0].fields, currentRole, utils.getInServizioListString(currentlyInServizio))
-  message.edit(message.embeds[0])
+  utils.updateGradiInServizio(currentlyInServizio, { username: (clicker.member.nickname !== null ? clicker.member.nickname : clicker.user.username), id: clicker.user.id }, true)
+  
+  utils.updateMessage(message, currentRole, currentlyInServizio);
 
   console.log('Sono entrato/a in servizio')//, clicker)
 }
 
 function timbraOutButton(message, clicker) {
   var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, clicker.member._roles));
-  var currentlyInServizio = utils.getField(gradi, 'inServizio')
+  var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, clicker.member._roles), 'inServizio')
 
-  if (!utils.isInServizio(currentlyInServizio, clicker.user.id)) { return; }
+  if (currentlyInServizio === undefined || !utils.isInServizio(currentlyInServizio, clicker.user.id)) { return; }
 
-  utils.updateGradiInServizio(currentlyInServizio, clicker.user, false)
+  utils.updateGradiInServizio(currentlyInServizio, { username: (clicker.member.nickname !== null ? clicker.member.nickname : clicker.user.username), id: clicker.user.id }, false)
 
-  message.embeds[0].fields = utils.updateField(message.embeds[0].fields, currentRole, utils.getInServizioListString(currentlyInServizio))
-  message.edit(message.embeds[0])
+  utils.updateMessage(message, currentRole, currentlyInServizio);
 
   console.log('Sono uscito/a dal servizio')//, clicker)
 }
@@ -89,6 +87,42 @@ client.on('clickButton', async (button) => {
     timbraInButton(button.message, button.clicker)
   } else if (button.id == "clockOutButton") {
     timbraOutButton(button.message, button.clicker)
+  }
+});
+
+client.on("guildMemberUpdate", (oldMember, newMember) => {
+  // console.log('cambiati permessi', oldMember, newMember)
+  var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, oldMember._roles), 'inServizio')
+
+  if (currentlyInServizio === undefined || !utils.isInServizio(currentlyInServizio, oldMember.user.id)) { return; }
+
+  if (oldMember._roles.length !== newMember._roles.length) {
+    var oldRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, oldMember._roles));
+
+    var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, newMember._roles));
+
+    if (oldRole !== currentRole) {
+      utils.updateGradiInServizio(currentlyInServizio, { username: (oldMember.nickname !== null ? oldMember.nickname : oldMember.user.username), id: oldMember.user.id }, false)
+
+      utils.updateMessage(embedMessage, oldRole, currentlyInServizio);
+
+      if (currentRole !== undefined) {
+        currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, newMember._roles), 'inServizio')
+
+        utils.updateGradiInServizio(currentlyInServizio, { username: (newMember.nickname !== null ? newMember.nickname : newMember.user.username), id: newMember.user.id }, true)
+
+        utils.updateMessage(embedMessage, currentRole, currentlyInServizio);
+      }
+    }
+  } else {
+    if (oldMember.nickname !== newMember.nickname) {
+      var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, newMember._roles));
+
+      utils.updateGradiInServizio(currentlyInServizio, { username: (oldMember.nickname !== null ? oldMember.nickname : oldMember.user.username), id: oldMember.user.id }, false)
+      utils.updateGradiInServizio(currentlyInServizio, { username: (newMember.nickname !== null ? newMember.nickname : newMember.user.username), id: newMember.user.id }, true)
+
+      utils.updateMessage(embedMessage, currentRole, currentlyInServizio);
+    }
   }
 });
 
