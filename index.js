@@ -4,7 +4,7 @@ const discordButtons = require('discord-buttons');
 const client = new Discord.Client();
 discordButtons(client);
 
-const token = 'ODY0NTQyMDQ5MzI3NTEzNjAx.YO29hg.E8Mx7iUblOJI1rhJAz81uEDG0is'
+const token = process.env.token
 
 const gradi = [
   {name:'Direttore', id:'864124622030241813', inServizio: []},
