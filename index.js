@@ -1,10 +1,9 @@
 const utils = require('./utils')
+var config = require('./config.json');
 const Discord = require('discord.js');
 const discordButtons = require('discord-buttons');
 const client = new Discord.Client();
 discordButtons(client);
-
-const token = process.env.token
 
 const gradi = [
   {name:'Direttore', id:'864124622030241813', inServizio: []},
@@ -145,4 +144,4 @@ client.on('message', message => {
   }
 });
 
-client.login(token)
+client.login(config.token)
