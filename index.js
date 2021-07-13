@@ -1,10 +1,10 @@
 const utils = require('./utils')
 const Discord = require('discord.js');
-const client = new Discord.Client();
 const discordButtons = require('discord-buttons');
+const client = new Discord.Client();
 discordButtons(client);
 
-const token = process.env['token']
+const token = 'ODY0NTQyMDQ5MzI3NTEzNjAx.YO29hg.E8Mx7iUblOJI1rhJAz81uEDG0is'
 
 const gradi = [
   {name:'Direttore', id:'864124622030241813', inServizio: []},
@@ -23,7 +23,6 @@ var embedMessage = null;
 client.once('ready', () => {
   console.log('Questo bot è online');
   currentServer = client.guilds.cache.get('864066342008651818');
-  // console.log(currentServer.members.cache.get('243014775510925313').roles.cache)
   targetChannel = currentServer.channels.cache.get('864165295777251358')
   const embedTimbro = new Discord.MessageEmbed()
 	.setColor('#1900ff')
@@ -37,61 +36,55 @@ client.once('ready', () => {
     embedTimbro.addFields({ name: grado.name, value: "Nessuno in servizio" })
   })
   
-  let clockInButton = new discordButtons.MessageButton()
+  let timbraInButton = new discordButtons.MessageButton()
   .setLabel("Timbra l'entrata in servizio")
-  .setID("clockInButton")
+  .setID("timbraInButton")
   .setStyle("green")
   .setEmoji("✔️");
 
-  let clockOutButton = new discordButtons.MessageButton()
+  let timbraOutButton = new discordButtons.MessageButton()
   .setLabel("Timbra l'uscita dal servizio")
-  .setID("clockOutButton")
+  .setID("timbraOutButton")
   .setStyle("red")
   .setEmoji("✖️");
 
   let messageActionRow = new discordButtons.MessageActionRow()
-  messageActionRow.addComponents(clockInButton, clockOutButton)
+  messageActionRow.addComponents(timbraInButton, timbraOutButton)
 
   targetChannel.send(embedTimbro, messageActionRow).then(sentMessage => { embedMessage = sentMessage });
 });
 
 
-function timbraInButton(message, clicker) {
-  var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, clicker.member._roles));
-  var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, clicker.member._roles), 'inServizio')
-
-  if (currentlyInServizio === undefined || utils.isInServizio(currentlyInServizio, clicker.user.id)) { return; }
-
-  utils.updateGradiInServizio(currentlyInServizio, { username: (clicker.member.nickname !== null ? clicker.member.nickname : clicker.user.username), id: clicker.user.id }, true)
-  
-  utils.updateMessage(message, currentRole, currentlyInServizio);
-
-  console.log('Sono entrato/a in servizio')//, clicker)
+async  function timbraInButton(button) {
+  var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, button.clicker.member._roles));
+  var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, button.clicker.member._roles), 'inServizio')
+  if (currentlyInServizio === undefined) { await button.reply.send("Non fai parte dell'ospedale!", true); return; }
+  if (utils.isInServizio(currentlyInServizio, button.clicker.user.id)) { await button.reply.send('Sei già in servizio!', true); return; }
+  utils.updateGradiInServizio(currentlyInServizio, { username: (button.clicker.member.nickname !== null ? button.clicker.member.nickname : button.clicker.user.username), id: button.clicker.user.id }, true)
+  utils.updateMessage(button.message, currentRole, currentlyInServizio);
+  await button.reply.send('Sei entrato in servizio!', true)
 }
 
-function timbraOutButton(message, clicker) {
-  var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, clicker.member._roles));
-  var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, clicker.member._roles), 'inServizio')
-
-  if (currentlyInServizio === undefined || !utils.isInServizio(currentlyInServizio, clicker.user.id)) { return; }
-
-  utils.updateGradiInServizio(currentlyInServizio, { username: (clicker.member.nickname !== null ? clicker.member.nickname : clicker.user.username), id: clicker.user.id }, false)
-
-  utils.updateMessage(message, currentRole, currentlyInServizio);
-
-  console.log('Sono uscito/a dal servizio')//, clicker)
+async function timbraOutButton(button) {
+  var currentRole = utils.getRoleNameById(currentServer.roles.cache, utils.getHighestRole(gradi, button.clicker.member._roles));
+  var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, button.clicker.member._roles), 'inServizio')
+  if (currentlyInServizio === undefined) { await button.reply.send("Non fai parte dell'ospedale!", true); return; }
+  if (!utils.isInServizio(currentlyInServizio, button.clicker.user.id)) { await button.reply.send('Non sei in servizio!', true); return; }
+  utils.updateGradiInServizio(currentlyInServizio, { username: (button.clicker.member.nickname !== null ? button.clicker.member.nickname : button.clicker.user.username), id: button.clicker.user.id }, false)
+  utils.updateMessage(button.message, currentRole, currentlyInServizio);
+  await button.reply.send('Sei uscito dal servizio!', true)
 }
 
 client.on('clickButton', async (button) => {
-  if (button.id == "clockInButton") {
-    timbraInButton(button.message, button.clicker)
-  } else if (button.id == "clockOutButton") {
-    timbraOutButton(button.message, button.clicker)
+  if (button.id == "timbraInButton") {
+    timbraInButton(button)
+  } else if (button.id == "timbraOutButton") {
+    timbraOutButton(button)
   }
 });
 
 client.on("guildMemberUpdate", (oldMember, newMember) => {
-  // console.log('cambiati permessi', oldMember, newMember)
+  console.log('cambiati permessi', oldMember, newMember)
   var currentlyInServizio = utils.getField(gradi, utils.getHighestRole(gradi, oldMember._roles), 'inServizio')
 
   if (currentlyInServizio === undefined || !utils.isInServizio(currentlyInServizio, oldMember.user.id)) { return; }
