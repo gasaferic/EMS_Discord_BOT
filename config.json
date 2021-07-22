@@ -1,0 +1,57 @@
+{
+  "token": "ODY0NTQyMDQ5MzI3NTEzNjAx.YO29hg.ZZ66OY5PIS05juAieb8lorXpx-0",
+  "fusoOrario": 2,
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "bot_discord",
+    "user": "root",
+    "password": ""
+  },
+  "replyDeleteTime": 5,
+  "warnDeleteTime": 1,
+  "commandCooldown": 2.5,
+  "defaultBadgeGuildSettings": "{\"targetRoles\": [], \"badgeChannel\": \"\",  \"logChannel\": \"\"}",
+  "lang": {
+    "mysql": {
+      "CONNECTION_NOT_AVAILABLE": "Non è stata stabilita una connessione con un database!",
+      "BAD_QUERY_SYNTAX": "Ho ricevuto una stringa non utilizzabile per un prepared statement",
+      "QUERY_PASSED_VALUES_MISMATCH" : "Il numero di valori da sostituire e quello dei valori passati non corrisponde! ({0} valori da sostituire, {1} passati)"
+    }
+  },
+  "commands": [
+    {
+      "command": "espelli",
+      "argsLength": 1,
+      "adminRequired": true,
+      "requiresChannelAsArg": true,
+      "commandFunctionString": "function(args) { if (!args[0].includes(\"<@!\")) { return; } var userId = args[0].match('\\<@!(.*?)\\>')[1]; this.commandManager.badgeGuild.forceTimbraOut(userId, args[1]); }"
+    },
+    {
+      "command": "addrole",
+      "argsLength": 1,
+      "adminRequired": true,
+      "requiresChannelAsArg": true,
+      "commandFunctionString": "function (args) { if (!args[0].includes(\"<@&\")) { return; } var roleId = args[0].match('\\<@&(.*?)\\>')[1]; if (this.commandManager.containsValue(this.commandManager.targetRoles, \"id\", roleId)) { return; } var role = this.commandManager.currentServer.roles.cache.get(roleId); this.commandManager.targetRoles.push({ \"name\": role.name, \"id\": role.id, \"inServizio\": [] }); this.commandManager.badgeGuild.eventEmitter.emit('updateGuildSettingsRoles', true); }"
+    },
+    {
+      "command": "removerole",
+      "argsLength": 1,
+      "adminRequired": true,
+      "requiresChannelAsArg": true,
+      "commandFunctionString": "function(args) { if (!args[0].includes(\"<@&\")) { return; } var roleId = args[0].match('\\<@&(.*?)\\>')[1]; if (!this.commandManager.containsValue(this.commandManager.targetRoles, \"id\", roleId)) { return; } this.commandManager.removeElemByValue(this.commandManager.targetRoles, \"id\", roleId); this.commandManager.badgeGuild.eventEmitter.emit('updateGuildSettingsRoles', true); }"
+    },
+    {
+      "command": "setbadgechannel",
+      "adminRequired": true,
+      "requiresChannelAsArg": true,
+      "commandFunctionString": "function(args) { this.commandManager.badgeGuildSettings.setValue(\"badgeChannel\", args[0]); this.commandManager.badgeGuild.eventEmitter.emit('updateGuildSettingsRoles'); }"
+    },
+    {
+      "command": "setlogchannel",
+      "adminRequired": true,
+      "requiresChannelAsArg": true,
+      "commandFunctionString": "function(args) { this.commandManager.badgeGuildSettings.setValue(\"logChannel\", args[0]); this.commandManager.badgeGuild.eventEmitter.emit('updateGuildSettingsRoles'); }"
+    }
+  ]
+}

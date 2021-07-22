@@ -5,7 +5,6 @@
 *.lock
 *.txt
 *.yml
-*.json
 node_modules/@discordjs/collection/LICENSE
 node_modules/@discordjs/form-data/License
 node_modules/abort-controller/LICENSE

@@ -17,7 +17,7 @@ class Utils {
 
   getFieldValue(array, field) {
     for (var elem of array) {
-      if (elem.name === field) {
+      if (elem[field] != undefined) {
         return elem.value
       }
     }
@@ -166,6 +166,24 @@ class Utils {
       }
     }
     return finalArray;
+  }
+
+  containsFieldValue(array, field, value) {
+    for (var elem of array) {
+      if (elem[field] != undefined && elem[field] == value) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getElemByFieldValue(array, field, value) {
+    for (var elem of array) {
+      if (elem[field] != undefined && elem[field] == value) {
+        return elem;
+      }
+    }
+    return undefined;
   }
 }
 
