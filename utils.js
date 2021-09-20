@@ -73,7 +73,7 @@ class Utils {
       message.embeds[0].addFields({ name: ruolo.name, value: this.getInServizioListString(ruolo.inServizio) });
     })
     
-    message.edit(message.embeds[0]);
+    message.edit({ embeds: [message.embeds[0]] });
   }
 
   getInServizioListString(array) {
@@ -108,7 +108,7 @@ class Utils {
   
   updateMessageField(message, role, updatedArray) {
     message.embeds[0].fields = this.updateField(message.embeds[0].fields, role, this.getInServizioListString(updatedArray))
-    message.edit(message.embeds[0])
+    message.edit({ embeds: [message.embeds[0]] })
   }
 
   logBadgeOut(data) {
@@ -126,7 +126,7 @@ class Utils {
     .setThumbnail('https://media.discordapp.net/attachments/864090286119714836/864111861552381997/ems-image.png?width=801&height=547')
     .setTimestamp()
     .setFooter('Bot creato da ToxicVolpix#7169 & Gasaferic#8789. Contattateci in privato per qualsiasi problema riscontrato con il bot');
-    data.channel.send(infoTimbro);
+    data.channel.send({ embeds: [infoTimbro] });
   }
 
   getElapsedTime(startMillis, stopMillis) {

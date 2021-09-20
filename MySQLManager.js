@@ -3,10 +3,10 @@ const mySQL = require('mysql');
 
 class MySQLManager {
 
-    constructor(mysqlConnectionParams, eventEmitter) {
+    constructor(data) {
         this.langManager = new LangManager("mysql");
-        this.eventEmitter = eventEmitter;
-        this.init(mysqlConnectionParams, eventEmitter);
+        this.eventEmitter = data.eventEmitter;
+        this.init(data.mysqlConnectionParams, data.eventEmitter);
     }
 
     init(mysqlConnectionParams) {
