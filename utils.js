@@ -1,3 +1,4 @@
+const fs = require('fs');
 const Discord = require('discord.js');
 var config = require('./config.json');
 
@@ -7,11 +8,11 @@ class Utils {
   constructor() { }
 
   updateField(array, field, value) {
-    array.forEach((elem) => {
+    for (var elem of array) {
       if (elem.name === field) {
         elem.value = value
       }
-    })
+    }
     return array;
   }
 
@@ -65,14 +66,11 @@ class Utils {
     }
   }
 
-  updateEmbedFields(badgeGuildRoles, guildRoles, message) {
-    badgeGuildRoles.sort((firstRole, secondRole) => guildRoles.get(secondRole.id).rawPosition - guildRoles.get(firstRole.id).rawPosition);
-        
+  updateEmbedFields(badgeGuildRoles, message) {
     message.embeds[0].fields = [];
     badgeGuildRoles.forEach((ruolo) => {
-      message.embeds[0].addFields({ name: ruolo.name, value: this.getInServizioListString(ruolo.inServizio) });
+      message.embeds[0].addFields({ name: ruolo.get("name"), value: this.getInServizioListString(ruolo.get("inServizio")) });
     })
-    
     message.edit({ embeds: [message.embeds[0]] });
   }
 
@@ -88,28 +86,28 @@ class Utils {
     return listString
   }
 
-  getHighestRole(rootRoles, userRoles) {
-    for (var currentRole of rootRoles) {
-      for (var currentUserRoleID of userRoles) {
-        if (currentUserRoleID === currentRole.id) {
-          return currentRole.id;
+  getHighestRole(dutyRoles, userRoles) {
+    for (var key of dutyRoles.keys()) {
+      for (var currentUserRoleId of userRoles) {
+        if (currentUserRoleId === key) {
+          return key;
         }
       }
     }
   }
 
-  getRoleNameById(rootRoles, id) {
-    for (const role of rootRoles.keys()) {
-      if (role === id) {
-        return rootRoles.get(role).name
-      }
-    }
+  getRoleNameById(dutyRoles, id) {
+    return dutyRoles.get(id).name;
   }
   
   updateMessageField(message, role, updatedArray) {
+    // console.log("prima", role, message.embeds[0].fields)
     message.embeds[0].fields = this.updateField(message.embeds[0].fields, role, this.getInServizioListString(updatedArray))
+    // console.log("dopo", role, message.embeds[0].fields)
     message.edit({ embeds: [message.embeds[0]] })
   }
+
+  options = { year: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
 
   logBadgeOut(data) {
     var enterDate = new Date(data.timestamp.enter + (fusoOrario * 60 * 60 * 1000));
@@ -120,13 +118,21 @@ class Utils {
     .setTitle('Timbro Badge')
     .setDescription('Uscita del servizio.')
     .addFields({ name: "Lavoratore", value: data.username })
-    .addFields({ name: "Inizio servizio", value: enterDate.toUTCString() })
-    .addFields({ name: "Fine servizio", value: exitDate.toUTCString() })
+    .addFields({ name: "Inizio servizio", value: this.getLocaleDateString(enterDate) })
+    .addFields({ name: "Fine servizio", value: this.getLocaleDateString(exitDate) })
     .addFields({ name: "Totale ore servizio", value: elapsedTimeFormatted.days + " " + elapsedTimeFormatted.hours + " " + elapsedTimeFormatted.minutes })
-    .setThumbnail('https://media.discordapp.net/attachments/864090286119714836/864111861552381997/ems-image.png?width=801&height=547')
+    .setThumbnail('https://media.discordapp.net/attachments/889851912139182091/889877620081180713/unknown.png')
     .setTimestamp()
-    .setFooter('Bot creato da ToxicVolpix#7169 & Gasaferic#8789. Contattateci in privato per qualsiasi problema riscontrato con il bot');
+    .setFooter('Bot creato da Gasaferic#8789');
     data.channel.send({ embeds: [infoTimbro] });
+  }
+
+  getLocaleDateString(date) {
+    return this.capitalizeFirstLetter(date.toLocaleDateString("it-IT", { weekday: 'long' })) + " " + date.toLocaleDateString("it-IT", { day: 'numeric' }) + " " + this.capitalizeFirstLetter(date.toLocaleDateString("it-IT", { month: 'long' })) + " " + date.toLocaleDateString("it-IT", this.options);
+  }
+
+  capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
   }
 
   getElapsedTime(startMillis, stopMillis) {
@@ -143,8 +149,8 @@ class Utils {
   // colorHex, title, description, thumbnail, timestamp, footer
 
   defaultEmbedData = {
-    thumbnail: "https://media.discordapp.net/attachments/864090286119714836/864111861552381997/ems-image.png?width=801&height=547",
-    footer: "Bot creato da ToxicVolpix#7169 & Gasaferic#8789. Contattateci in privato per qualsiasi problema riscontrato con il bot"
+    thumbnail: "https://media.discordapp.net/attachments/889851912139182091/889877620081180713/unknown.png",
+    footer: "Bot creato da Gasaferic#8789"
   }
   
   getEmbedMessage(embedData) {
@@ -185,6 +191,12 @@ class Utils {
     }
     return undefined;
   }
+
+  log(data) {
+    var currentDate = new Date(Date.now() + (fusoOrario * (60 * 60 * 1000)));
+    fs.appendFileSync("./logs_" + (currentDate.getDate() + "-" + (currentDate.getMonth() + 1) + "-" + currentDate.getFullYear()) + ".txt", ("[" + (Date.now() + (fusoOrario * (60 * 60 * 1000))) + "]") + ">[" + data.action + "]>" + data.content + "\n", 'utf8');
+  }
+
 }
 
 module.exports = Utils

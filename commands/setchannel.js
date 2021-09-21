@@ -38,8 +38,8 @@ module.exports = {
         // console.log(interaction.options._hoistedOptions)
         if (interaction.options._hoistedOptions[1].channel.type != "GUILD_TEXT") { await interaction.reply({ embeds: [utils.getEmbedMessage({ colorHex: "#c91212", title: "Amministrazione", description: "Il canale selezionato non è un canale testuale!", timestamp: true })] , ephemeral: true }); return; }  
         const badgeGuild = badgeGuildManager.getBadgeGuildById(interaction.guild.id);
-        if (badgeGuild.getBadgeGuildSettings().getValue(interaction.options._hoistedOptions[0].value) == interaction.options._hoistedOptions[1].value) { await interaction.reply({ embeds: [utils.getEmbedMessage({ colorHex: "#c91212", title: "Amministrazione", description: "Questo canale è già stato impostato per " + this.channelOptions[interaction.options._hoistedOptions[0].value], timestamp: true })] , ephemeral: true }); return; }  
-        badgeGuild.getBadgeGuildSettings().setValue(interaction.options._hoistedOptions[0].value, interaction.options._hoistedOptions[1].value);
+        if (badgeGuild.getBadgeGuildSettings().get(interaction.options._hoistedOptions[0].value) == interaction.options._hoistedOptions[1].value) { await interaction.reply({ embeds: [utils.getEmbedMessage({ colorHex: "#c91212", title: "Amministrazione", description: "Questo canale è già stato impostato per " + this.channelOptions[interaction.options._hoistedOptions[0].value], timestamp: true })] , ephemeral: true }); return; }  
+        badgeGuild.getBadgeGuildSettings().set(interaction.options._hoistedOptions[0].value, interaction.options._hoistedOptions[1].value);
         badgeGuild.updateSettings();
         interaction.reply({ embeds: [utils.getEmbedMessage({ colorHex: "#32a852", title: "Amministrazione", description: "Impostato il canale " + interaction.options._hoistedOptions[1].channel.name + " per " + this.channelOptions[interaction.options._hoistedOptions[0].value], timestamp: true })] , ephemeral: true });
     },

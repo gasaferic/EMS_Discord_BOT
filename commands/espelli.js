@@ -23,5 +23,6 @@ module.exports = {
     ],
     spamDelay: 5,
 	async execute(interaction, badgeGuildManager) {
+		badgeGuildManager.getBadgeGuildById(interaction.guild.id).handleBadgeForceOff(interaction, interaction.options._hoistedOptions[0].value);
 	},
 };

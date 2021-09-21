@@ -17,7 +17,7 @@ interactionDelay.set("button", []);
 interactionDelay.set("contextMenu", []);
 
 interactionDelay.set("command", new Map());
-
+interactionDelay.set("roleUpdate", []);
 
 // Commands Classes
 
@@ -135,52 +135,40 @@ client.on("guildDelete", function(guild){
 client.on('interactionCreate', async (interaction) => {
   // console.log(interaction);
   if (interaction.isButton()) {
-    if (interactionDelay.get("button").includes(interaction.member.user.id)) { return; }
-    if (interaction.customId == "dutyOff" || interaction.customId == "dutyOn") { badgeGuildManager.getBadgeGuildById(interaction.guild.id).handleButton(interaction); }
-    interactionDelay.get("button").push(interaction.member.user.id);
-    setTimeout(() => { interactionDelay.get("button").splice(interactionDelay.get("button").indexOf(interaction.member.user.id), 1) }, 2000)
+    if (interaction.customId == "dutyOff" || interaction.customId == "dutyOn") { setTimeout(() => badgeGuildManager.getBadgeGuildById(interaction.guild.id).handleButton(interaction), 25); }
   } else if (interaction.isCommand()) {
     // log({ action: interaction.type, content: interaction.member.user.username + " ha utilizzato un comando (" + interaction.commandName + ")"});
-    // console.log(commands.get(interaction.commandName).spamDelay, typeof interactionDelay.get("command").get(interaction.commandName), interactionDelay.get("command").get(interaction.commandName)[interaction.member.user.id]);
-
-    if (interactionDelay.get("command").get(interaction.commandName).has(interaction.member.user.id)) { await interaction.reply({content: "Non puoi eseguire questo comando per " + utils.getRemainingTime(Date.now(), interactionDelay.get("command").get(interaction.commandName).get(interaction.member.user.id)), ephemeral: true}); return; }
-    
+    // console.log(commands.get(interaction.commandName).spamDelay, typeof interactionDelay.get("command").get(interaction.commandName), interactionDelay.get("command").get(interaction.commandName)[interaction.member.user.id]);    
     commands.get(interaction.commandName).execute(interaction, badgeGuildManager);
-    interactionDelay.get("command").get(interaction.commandName).set(interaction.member.user.id, Date.now() + commands.get(interaction.commandName).spamDelay * 1000);
-
-    setTimeout(() => { interactionDelay.get("command").get(interaction.commandName).delete(interaction.member.user.id) }, commands.get(interaction.commandName).spamDelay * 1000)
-
   } else if (interaction.isContextMenu()) {
-    if (interactionDelay.get("contextMenu").includes(interaction.member.user.id)) { return; }
-
     if (interaction.commandName == "Caccia dal Servizio") {
-      commands.get(interaction.commandName.toLowerCase().replaceAll(" ", "")).execute(interaction, tokenManager);
+      commands.get(interaction.commandName.toLowerCase().replaceAll(" ", "")).execute(interaction, badgeGuildManager);
     }
-
-    interactionDelay.get("contextMenu").push(interaction.member.user.id);
-    setTimeout(() => { interactionDelay.get("contextMenu").splice(interactionDelay.get("contextMenu").indexOf(interaction.member.user.id), 1) }, 2000)
   }
 });
+
 client.on("guildMemberUpdate", (oldMember, newMember) => {
   // console.log('guildMemberUpdate', oldMember.guild.id, newMember.guild.id)
-  if (badgeGuilds[newMember.guild.id] == undefined) { return; }
-  badgeGuilds[newMember.guild.id].guildMemberUpdate(oldMember, newMember)
+  if (badgeGuildManager.getBadgeGuildById(newMember.guild.id) == undefined) { return; }
+  badgeGuildManager.getBadgeGuildById(newMember.guild.id).handleGuildMemberUpdate(oldMember, newMember)
 });
 
 client.on('messageCreate', message => {
 });
-
+const eventQueue = [
+	roleUpdate = []
+]
 client.on("roleUpdate", function(oldRole, newRole) {
-  let currentBadgeGuild = badgeGuilds[newRole.guild.id]
+  let currentBadgeGuild = badgeGuildManager.getBadgeGuildById(newRole.guild.id)
   // console.log("event", Date.now());
   if (currentBadgeGuild == undefined) { return; }
-  if (!currentBadgeGuild.utils.containsFieldValue(currentBadgeGuild.targetRoles, "id", newRole.id)) { return; }
+  if (!currentBadgeGuild.utils.containsFieldValue(currentBadgeGuild.dutyRoles, "id", newRole.id)) { return; }
   if (oldRole.name != newRole.name) { currentBadgeGuild.onRoleUpdate(newRole); }
-  if (eventQueue.roleUpdate.includes(currentBadgeGuild.id)) { return; }
-  eventQueue.roleUpdate.push(currentBadgeGuild.id);
+  if (interactionDelay.get("roleUpdate").includes(currentBadgeGuild.id)) { return; }
+  interactionDelay.get("roleUpdate").push(currentBadgeGuild.id);
   setTimeout(() => {
-    currentBadgeGuild.onRoleUpdate();
-    eventQueue.roleUpdate.shift();
+    currentBadgeGuild.handleRoleUpdate();
+    interactionDelay.get("roleUpdate").shift();
   }, 10)
 });
 

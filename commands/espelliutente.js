@@ -4,6 +4,7 @@ const ContextCommandBuilder = require('../ContextCommandBuilder.js');
 module.exports = {
 	data: new ContextCommandBuilder("Caccia dal Servizio", 2),
 	async execute(interaction, badgeGuildManager) {
+		badgeGuildManager.getBadgeGuildById(interaction.guild.id).handleBadgeForceOff(interaction, interaction.options._hoistedOptions[0].value);
 	},
     permissions: [
         {

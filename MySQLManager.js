@@ -6,15 +6,18 @@ class MySQLManager {
     constructor(data) {
         this.langManager = new LangManager("mysql");
         this.eventEmitter = data.eventEmitter;
-        this.init(data.mysqlConnectionParams, data.eventEmitter);
+        this.init(data.mysqlConnectionParams);
     }
 
     init(mysqlConnectionParams) {
-        const connection = new mySQL.createConnection({ host: mysqlConnectionParams.host, port: mysqlConnectionParams.port || 3306, database: mysqlConnectionParams.database, user: mysqlConnectionParams.user, password: mysqlConnectionParams.password, charset : "utf8mb4" });
-        connection.connect(function(err) {
-            if (err) throw err;
-            this.connection = connection;
-            this.eventEmitter.emit('mysql_connection_ready', { host: mysqlConnectionParams.host, database: mysqlConnectionParams.database, user: mysqlConnectionParams.user});
+	    this.mysqlConnectionParams = mysqlConnectionParams;
+        this.connection = new mySQL.createConnection({ host: mysqlConnectionParams.host, port: mysqlConnectionParams.port || 3306, database: mysqlConnectionParams.database, user: mysqlConnectionParams.user, password: mysqlConnectionParams.password, charset : "utf8mb4" });
+        this.connection.connect(function(err) {
+            this.eventEmitter.emit("mysql_connection_ready", { host: mysqlConnectionParams.host, database: mysqlConnectionParams.database, user: mysqlConnectionParams.user});
+            this.connection.on("error", function(err) {
+		        console.log("Errore MySQL", err.code);
+		        this.reconnect();
+            }.bind(this));
         }.bind(this));
     }
 
@@ -64,6 +67,16 @@ class MySQLManager {
             queryString = queryString.replace(queryString.charAt(queryString.indexOf('?')), values[i])
         }
         return queryString;
+    }
+
+    reconnect() {
+        this.connection = new mySQL.createConnection({ host: this.mysqlConnectionParams.host, port: this.mysqlConnectionParams.port || 3306, database: this.mysqlConnectionParams.database, user: this.mysqlConnectionParams.user, password: this.mysqlConnectionParams.password, charset : "utf8mb4" });
+        this.connection.connect(function(err) {
+		this.connection.on("error", function(err) {
+			console.log("Errore MySQL", err.code);
+			this.reconnect();
+		}.bind(this));
+        }.bind(this));
     }
 }
 
