@@ -1,5 +1,5 @@
 {
-  "token": "ODY0NTQyMDQ5MzI3NTEzNjAx.YO29hg.3mSxRMvNA0mLT7I3IR68Kkf8Jz0",
+  "token": "ODkxNjY3NTc2Nzc2NzA0MDMw.YVBsJA.Wx-QZPAZcbXV9fIa0LNU_Oge_oU",
   "fusoOrario": 2,
   "mysql": {
     "host": "localhost",
@@ -8,7 +8,7 @@
     "user": "root",
     "password": ""
   },
-  "authoritativeDiscord": "864058981570838548",
+  "authoritativeDiscord": "891667506626985994",
   "replyDeleteTime": 5,
   "warnDeleteTime": 1,
   "commandCooldown": 2.5,
@@ -22,11 +22,11 @@
   },
   "roles": {
     "admin": {
-      "name": "👑 | Vice Direttore / Direttrice 🌻",
-      "id": "864058981676482581"
+      "name": "Amministratore",
+      "id": "891667939118432276"
     },
     "everyone": {
-      "id": "864058981570838548"
+      "id": "891667506626985994"
     }
   }
 }

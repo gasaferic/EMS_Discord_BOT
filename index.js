@@ -1,21 +1,24 @@
 const MySQLManager = require('./MySQLManager');
+const BadgeGuildManager = require('./badgeguilds/BadgeGuildManager');
+const Clock = require('./Clock');
+
+var config = require('./config.json');
+var mysqlConnectionParams = config.mysql;
+
+const fs = require('fs');
 const events = require('events');
 const eventEmitter = new events.EventEmitter();
+
 const Discord = require('discord.js');
+const BadgeGuild = require('./badgeguilds/BadgeGuild');
 const Intents = Discord.Intents;
 const client = new Discord.Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS, Intents.FLAGS.GUILD_MESSAGES] });
-const fs = require('fs');
-
-
-
-
 
 // Anti-Spam
 
 const interactionDelay = new Map();
 interactionDelay.set("button", []);
 interactionDelay.set("contextMenu", []);
-
 interactionDelay.set("command", new Map());
 interactionDelay.set("roleUpdate", []);
 
@@ -32,22 +35,6 @@ for (const file of commandFiles) {
   }
 }
 
-
-
-
-
-var config = require('./config.json');
-var mysqlConnectionParams = config.mysql;
-
-
-
-
-
-
-
-const BadgeGuildManager = require('./badgeguilds/BadgeGuildManager');
-var badgeGuildManager;
-
 const mySQLManager = new MySQLManager({ mysqlConnectionParams: mysqlConnectionParams, eventEmitter: eventEmitter });
 eventEmitter.once("mysql_connection_ready", function(connectionParams) {
   console.log("Connesso a " + connectionParams.host + " nel database " + connectionParams.database + " come " + connectionParams.user);
@@ -58,6 +45,8 @@ process.on('unhandledRejection', error => {
 	console.error('Unhandled promise rejection:', error);
 });
 
+var clock;
+var badgeGuildManager;
 client.once("ready", () => {
 
   currentServer = client.guilds.cache.get(config.authoritativeDiscord);
@@ -115,11 +104,16 @@ client.once("ready", () => {
 
   });*/
 
-
   mySQLManager.getGuilds(function(guilds) { 
     badgeGuildManager = new BadgeGuildManager(client, mySQLManager, guilds);
   });
-  
+
+  clock = new Clock(eventEmitter);
+  eventEmitter.on("onDayFirstMinute", millis => {
+    badgeGuildManager.getBadgeGuilds().forEach(badgeGuild => {
+      badgeGuild.handleDayChange();
+    })
+  });
 })
 
 client.on("guildCreate", function(guild){
@@ -137,8 +131,6 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
     if (interaction.customId == "dutyOff" || interaction.customId == "dutyOn") { setTimeout(() => badgeGuildManager.getBadgeGuildById(interaction.guild.id).handleButton(interaction), 25); }
   } else if (interaction.isCommand()) {
-    // log({ action: interaction.type, content: interaction.member.user.username + " ha utilizzato un comando (" + interaction.commandName + ")"});
-    // console.log(commands.get(interaction.commandName).spamDelay, typeof interactionDelay.get("command").get(interaction.commandName), interactionDelay.get("command").get(interaction.commandName)[interaction.member.user.id]);    
     commands.get(interaction.commandName).execute(interaction, badgeGuildManager);
   } else if (interaction.isContextMenu()) {
     if (interaction.commandName == "Caccia dal Servizio") {

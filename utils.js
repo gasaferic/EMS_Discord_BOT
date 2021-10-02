@@ -136,16 +136,73 @@ class Utils {
   }
 
   getElapsedTime(startMillis, stopMillis) {
-    var elapsedTime = stopMillis - startMillis;
-    var elapsedTimeFormatted = { days: 0, hours: 0, minutes: 0 }
-    elapsedTimeFormatted.minutes = Math.floor((elapsedTime / 1000) / 60);
-    if (elapsedTimeFormatted.minutes > 59) { elapsedTimeFormatted.hours = Math.floor(elapsedTimeFormatted.minutes / 60); elapsedTimeFormatted.minutes = elapsedTimeFormatted.minutes % 60; }
-    if (elapsedTimeFormatted.hours > 23) { elapsedTimeFormatted.days = Math.floor(elapsedTimeFormatted.hours / 24); elapsedTimeFormatted.hours = elapsedTimeFormatted.hours % 24; }
-    elapsedTimeFormatted.days = elapsedTimeFormatted.days == 1 ? elapsedTimeFormatted.days + " Giorno" : elapsedTimeFormatted.days + " Giorni"
-    elapsedTimeFormatted.hours = elapsedTimeFormatted.hours == 1 ? elapsedTimeFormatted.hours + " Ora" : elapsedTimeFormatted.hours + " Ore"
-    elapsedTimeFormatted.minutes = elapsedTimeFormatted.minutes == 1 ? elapsedTimeFormatted.minutes + " Minuto" : elapsedTimeFormatted.minutes + " Minuti"
-    return elapsedTimeFormatted;
+    return this.getFormattedTime(this.getTimeFromMillis(stopMillis - startMillis));
   }
+
+  getFormattedTime(time, short) {
+    var formattedTime = { days: time.days, hours: time.hours, minutes: time.minutes };
+    formattedTime.days = formattedTime.days == 1 ? formattedTime.days + " Giorno"  : formattedTime.days + " Giorni"
+    formattedTime.hours = formattedTime.hours == 1 ? formattedTime.hours + " Ora" : formattedTime.hours + " Ore"
+    formattedTime.minutes = formattedTime.minutes == 1 ? formattedTime.minutes + " Minuto" : formattedTime.minutes + " Minuti"
+    if (short) {
+      formattedTime.days = formattedTime.days.substring(0, formattedTime.days.length - 5).toLowerCase();
+      formattedTime.hours = formattedTime.hours.substring(0, formattedTime.hours.length - 2).toLowerCase();
+      formattedTime.minutes = formattedTime.minutes.substring(0, formattedTime.minutes.length - 5).toLowerCase();
+    }
+    return formattedTime;
+  }
+
+  getTimeFromMillis(millis) {
+    var time = { days: 0, hours: 0, minutes: 0 }
+    time.minutes = Math.floor((millis / 1000) / 60);
+    if (time.minutes > 59) { time.hours = Math.floor(time.minutes / 60); time.minutes = time.minutes % 60; }
+    if (time.hours > 23) { time.days = Math.floor(time.hours / 24); time.hours = time.hours % 24; }
+    return time;
+  }
+
+  getTimezone() {
+    return fusoOrario;
+  }
+
+  SECOND = 1000 * 1;
+  MINUTE = this.SECOND * 60;
+  HOUR = this.MINUTE * 60;
+  DAY = this.HOUR * 24;
+
+  getClearedTime(millis, interestedTime) {
+    var currentDate = new Date(millis);
+    if (interestedTime == "second") {
+      currentDate = new Date(millis - currentDate.getUTCMilliseconds());
+    } else if (interestedTime == "minute") {
+      currentDate = new Date(millis - ((currentDate.getUTCSeconds() * 1000) + currentDate.getUTCMilliseconds()));
+    } else if (interestedTime == "hour") {
+      currentDate = new Date(millis - ((currentDate.getUTCMinutes() * this.MINUTE) + (currentDate.getUTCSeconds() * 1000) + currentDate.getUTCMilliseconds()));
+    } else if (interestedTime == "day") {
+      currentDate = new Date(millis - ((currentDate.getUTCHours() * this.HOUR) + (currentDate.getUTCMinutes() * this.MINUTE) + (currentDate.getUTCSeconds() * 1000) + currentDate.getUTCMilliseconds()));
+    }
+    return currentDate;
+  }
+
+  getHalfSecond(millis) {
+    return this.getClearedTime(millis, "second").getTime() + 500;
+  }
+
+  getPastDate(date, pastDays) {
+    // console.log(new Date(this.getClearedTime(date.getTime(), "day").getTime() - (this.DAY * pastDays)));
+    return new Date(this.getClearedTime(date.getTime(), "day").getTime() - (this.DAY * pastDays));
+  } 
+
+  getDatesRange(startDate, endDate) {
+    const datesRange = [];
+    var currentDate = startDate;
+    while (true) {
+      if (currentDate.getUTCFullYear() == endDate.getUTCFullYear() && currentDate.getUTCMonth() == endDate.getUTCMonth() && currentDate.getUTCDate() == endDate.getUTCDate()) { break }
+      datesRange.push(currentDate.getUTCDate() + "-" + (currentDate.getUTCMonth() + 1) + "-" + currentDate.getUTCFullYear());
+      currentDate = new Date(this.getClearedTime(currentDate.getTime(), "day").getTime() + this.DAY);
+    }
+    return datesRange;
+  }
+
   // colorHex, title, description, thumbnail, timestamp, footer
 
   defaultEmbedData = {
@@ -159,6 +216,7 @@ class Utils {
     if (embedData.title) { embedMessage.setTitle(embedData.title); }
     if (embedData.description) { embedMessage.setDescription(embedData.description); }
     if (embedData.timestamp) { embedMessage.setTimestamp(); }
+    if (embedData.fields) { embedMessage.addFields(embedData.fields); }
     embedMessage.setThumbnail(embedData.thumbnail || this.defaultEmbedData.thumbnail);
     embedMessage.setFooter(embedData.footer || this.defaultEmbedData.footer);
     return embedMessage;
@@ -193,8 +251,74 @@ class Utils {
   }
 
   log(data) {
-    var currentDate = new Date(Date.now() + (fusoOrario * (60 * 60 * 1000)));
-    fs.appendFileSync("./logs_" + (currentDate.getDate() + "-" + (currentDate.getMonth() + 1) + "-" + currentDate.getFullYear()) + ".txt", ("[" + (Date.now() + (fusoOrario * (60 * 60 * 1000))) + "]") + ">[" + data.action + "]>" + data.content + "\n", 'utf8');
+    var currentDate = data.date || new Date(Date.now() + (fusoOrario * (60 * 60 * 1000)));
+    fs.appendFileSync("./weekly_reports/" + data.badgeGuildId + "/new/logs_" + (currentDate.getUTCDate() + "-" + (currentDate.getUTCMonth() + 1) + "-" + currentDate.getUTCFullYear()) + ".txt", data.content + "\n", 'utf8');
+  }
+
+  getMapFromJSON(jsonObject) {
+      var finalMap = new Map();
+      for (var elem in jsonObject) {
+          if (typeof jsonObject[elem] != "object") { finalMap.set(elem, jsonObject[elem]); } else { finalMap.set(elem, this.getMapFromObject(jsonObject[elem])); }
+      }
+      return finalMap;
+  }
+
+  getMapFromObject(object) {
+      var objectMap = new Map();
+      for (var elem in object) {
+          if (typeof object[elem] != "object") { objectMap.set(elem, object[elem]); } else { objectMap.set(elem, this.getMapFromObject(object[elem])); }
+      }
+      return objectMap;
+  }
+
+  getJSONFromMap(map) {
+      this.fixTargetRolesStructure(map, false);
+
+      var jsonObject = {};
+
+      for (var key of map.keys()) {
+          if (typeof map.get(key) != "object") { jsonObject[key] = map.get(key); } else { jsonObject[key] = this.getObjectFromMap(map.get(key)); }
+      }
+
+      return JSON.stringify(jsonObject);
+  }
+
+  getObjectFromMap(map) {
+      var mapObject = {};
+      for (var key of map.keys()) {
+          if (typeof map.get(key) != "object") { mapObject[key] = map.get(key); } else { mapObject[key] = this.getObjectFromMap(map.get(key)); }
+      }
+      return mapObject;
+  }
+
+  getMapFullClone(map) {
+      const finalMap = new Map();
+
+      for (var key of map.keys()) {
+          if (typeof map.get(key) != "object") { finalMap.set(key, map.get(key)); } else { finalMap.set(key, this.cloneMapObject(map.get(key))); }
+      }
+
+      return finalMap;
+  }
+
+  cloneMapObject(map) {
+      const finalMap = new Map();
+      for (var key of map.keys()) {
+          if (typeof map.get(key) != "object") { finalMap.set(key, map.get(key)); } else { finalMap.set(key, this.cloneMapObject(map.get(key))); }
+      }
+      return finalMap;
+  }
+
+  fixTargetRolesStructure(settings, add) {
+    if (!settings.has("dutyRoles")) { return; }
+    var roles = settings.get("dutyRoles");
+    for (var key of roles.keys()) {
+        if (add) {
+            roles.get(key).set("inServizio", []);
+        } else {
+            if (roles.get(key).has("inServizio")) { roles.get(key).delete("inServizio"); };
+        }
+    }
   }
 
 }

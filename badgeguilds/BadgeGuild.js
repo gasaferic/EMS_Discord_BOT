@@ -2,7 +2,8 @@ const Discord = require('discord.js');
 
 const events = require('events');
 // const LangManager = require('./LangManager');
-const Utils = require('../Utils');
+
+const Parser = require('../Parser');
 
 class BadgeGuild {
   constructor(data) {
@@ -11,11 +12,15 @@ class BadgeGuild {
     this.badgeGuildSettings = data.settings;
     this.dutyRoles = this.badgeGuildSettings.get("dutyRoles");
     this.mySQLManager = data.mySQLManager;
-    this.utils = new Utils();
-
-    this.clientReady()
-
+    this.utils = data.utils;
+    this.timezone = this.utils.getTimezone();
     this.eventEmitter = new events.EventEmitter();
+    this.eventEmitter.on("fileParsingDone", time => {
+      console.log("Loaded parsed files in " + (time / 1000).toString().substring(0, 7) + "s");
+      this.clientReady();
+    });
+    this.parser = new Parser({ eventEmitter: this.eventEmitter, utils: this.utils, inputDir: "./weekly_reports/" + this.guildId + "/", outputDir: "./parsed_weekly_reports/" + this.guildId })
+
     this.eventEmitter.on('updateGuildSettingsRoles', (roles) => {
       this.badgeGuildSettings.set("dutyRoles", new Map([...this.dutyRoles.entries()].sort((firstRole, secondRole) => this.currentServer.roles.cache.get(secondRole[0]).rawPosition - this.currentServer.roles.cache.get(firstRole[0]).rawPosition)));
       this.dutyRoles = this.badgeGuildSettings.get("dutyRoles");
@@ -28,6 +33,10 @@ class BadgeGuild {
     return this.badgeGuildSettings;
   }
 
+  getParser() {
+    return this.parser;
+  }
+
   updateSettings() {
 
     if ((this.badgeChannel = this.currentServer.channels.cache.get(this.badgeGuildSettings.get("badgeChannel"))) == undefined) { this.currentServer.channels.cache.get(this.currentServer.systemChannelID).send(this.utils.getEmbedMessage({ colorHex: "#c91212", title: "Impostazioni bot", description: "Non è stato impostato un canale per il timbro dei badge, impostalo eseguendo il comando !setbadgechannel nel canale interessato", timestamp: true })); return; }
@@ -36,11 +45,21 @@ class BadgeGuild {
     this.mySQLManager.updateGuildSettingsById(this.guildId, this.badgeGuildSettings.getJSONString());
   }
 
+  async updateRolePaycheck(roleId, paycheck, interaction) {
+    if (!this.dutyRoles.has(roleId)) { await interaction.reply({ embeds: [this.utils.getEmbedMessage({ colorHex: "#c91212", title: "Amministrazione", description: "Questo ruolo non è presente nel timbro!", timestamp: true })] , ephemeral: true }); return; }
+    
+    this.dutyRoles.get(roleId).set("paycheck", paycheck);
+
+    this.eventEmitter.emit('updateGuildSettingsRoles', true);
+    interaction.reply({ embeds: [this.utils.getEmbedMessage({ colorHex: "#32a852", title: "Amministrazione", description: "Impostato a " + paycheck + " € lo stipendio per il ruolo " + this.dutyRoles.get(roleId).get("name"), timestamp: true })] , ephemeral: true });
+  }
+
   async addRole(role, interaction) {
     if (this.dutyRoles.has(role.id)) { await interaction.reply({ embeds: [this.utils.getEmbedMessage({ colorHex: "#c91212", title: "Amministrazione", description: "Questo ruolo è già presente nel timbro!", timestamp: true })] , ephemeral: true }); return; }
     
     const mapRole = new Map();
     mapRole.set("name", role.name);
+    mapRole.set("paycheck", 0);
     mapRole.set("inServizio", []);
     this.dutyRoles.set(role.id, mapRole);
 
@@ -117,6 +136,7 @@ class BadgeGuild {
 
     if (!this.utils.isInServizio(currentlyInServizio, member.user.id)) { await interaction.reply({ embeds: [ this.utils.getEmbedMessage({ colorHex: "#fcc603", title: "Informazione Servizio", description: "L'utente " + name + " non è in servizio!", timestamp: true }) ], ephemeral: true}); return; }
     
+    this.utils.log({ badgeGuildId: this.guildId, content: ("TS[" + this.utils.getHalfSecond(Date.now() + (this.timezone * (60 * 60 * 1000))) + "]/TS") + ">A[SERVIZIO_OFF]/A>ID[ID_" + userId + "]/ID>RID[ROLE_ID" + highestRoleId + "]/RID" })
     this.utils.updateGradiInServizio(currentlyInServizio, { username: name, id: member.user.id }, false, this.logChannel)
     this.utils.updateMessageField(this.embedMessage, currentRole, currentlyInServizio);
     interaction.reply({ embeds: [this.utils.getEmbedMessage({ colorHex: "#32a852", title: "Informazione Servizio", description: "Utente " + name + " cacciato dal servizio", timestamp: true })], ephemeral: true });
@@ -136,13 +156,13 @@ class BadgeGuild {
       if (!this.utils.isInServizio(currentlyInServizio, button.member.user.id)) { await button.reply({ embeds: [ this.utils.getEmbedMessage({ colorHex: "#fcc603", title: "Informazione Servizio", description: "Non sei in servizio!", timestamp: true }) ], ephemeral: true}); return; }
       this.utils.updateGradiInServizio(currentlyInServizio, { username: (button.member.nickname !== null ? button.member.nickname : button.member.user.username), id: button.member.user.id }, false, this.logChannel)
       button.reply({ embeds: [this.utils.getEmbedMessage({ colorHex: "#c91212", title: "Informazione Servizio", description: "Sei uscito/a dal servizio", timestamp: true })], ephemeral: true });
-      this.utils.log({action: "SERVIZIO_OFF", content: "[ID_" + button.member.user.id + "]>[ROLE_ID" + highestRoleId + "]"})
+      this.utils.log({ badgeGuildId: this.guildId, content: ("TS[" + this.utils.getHalfSecond(Date.now() + (this.timezone * (60 * 60 * 1000))) + "]/TS") + ">A[SERVIZIO_OFF]/A>ID[ID_" + button.member.user.id + "]/ID>RID[ROLE_ID" + highestRoleId + "]/RID" })
       success = true;
     } else if (button.customId == "dutyOn") {
       if (this.utils.isInServizio(currentlyInServizio, button.member.user.id)) { await button.reply({ embeds: [ this.utils.getEmbedMessage({ colorHex: "#fcc603", title: "Informazione Servizio", description: "Sei già in servizio!", timestamp: true }) ], ephemeral: true}); return; }
       this.utils.updateGradiInServizio(currentlyInServizio, { username: (button.member.nickname !== null ? button.member.nickname : button.member.user.username), id: button.member.user.id }, true)
-      this.utils.log({action: "SERVIZIO_ON", content: "[ID_" + button.member.user.id + "]>[ROLE_ID" + highestRoleId + "]"})
       button.reply({ embeds: [this.utils.getEmbedMessage({ colorHex: "#32a852", title: "Informazione Servizio", description: "Sei entrato/a in servizio", timestamp: true })], ephemeral: true });
+      this.utils.log({ badgeGuildId: this.guildId, content: ("TS[" + this.utils.getHalfSecond(Date.now() + (this.timezone * (60 * 60 * 1000))) + "]/TS") + ">A[SERVIZIO_ON]/A>ID[ID_" + button.member.user.id + "]/ID>RID[ROLE_ID" + highestRoleId + "]/RID" })
       success = true;
     }
     if (success) {
@@ -156,40 +176,60 @@ class BadgeGuild {
 
     var oldHighestRoleId = this.utils.getHighestRole(this.dutyRoles, oldMember._roles);
 
+    if (!this.dutyRoles.has(oldHighestRoleId)) { return; }
     if (!this.dutyRoles.get(oldHighestRoleId).has("inServizio") || this.dutyRoles.get(oldHighestRoleId).has("inServizio") && !this.utils.isInServizio(this.dutyRoles.get(oldHighestRoleId).get("inServizio"), oldMember.user.id)) { return; }
 
     var currentlyInServizio = this.dutyRoles.get(oldHighestRoleId).get("inServizio");
     var oldCurrentRole = this.dutyRoles.get(oldHighestRoleId).get("name");
 
     var newHighestRoleId = this.utils.getHighestRole(this.dutyRoles, newMember._roles);
-    var newCurrentRole = this.dutyRoles.get(newHighestRoleId).get("name");
+    var newCurrentRole = this.dutyRoles.get(newHighestRoleId);
 
     if (oldMember._roles.length !== newMember._roles.length) {
       // console.log(oldRole, currentRole);
       if (oldCurrentRole !== newCurrentRole) {
+	      this.utils.log({ badgeGuildId: this.guildId, content: ("TS[" + this.utils.getHalfSecond(Date.now() + (this.timezone * (60 * 60 * 1000))) + "]/TS") + ">A[SERVIZIO_OFF]/A>ID[ID_" + oldMember.user.id  + "]/ID>RID[ROLE_ID" + oldHighestRoleId + "]/RID" })
         this.utils.updateGradiInServizio(currentlyInServizio, { username: (oldMember.nickname !== null ? oldMember.nickname : oldMember.user.username), id: oldMember.user.id }, false, this.logChannel)
         this.utils.updateMessageField(this.embedMessage, oldCurrentRole, currentlyInServizio);
         if (newCurrentRole !== undefined) {
 	  // console.log("Non undefined");
-          var newCurrentlyInServizio = this.dutyRoles.get(newHighestRoleId).get("inServizio");
+          var newCurrentlyInServizio = newCurrentRole.get("inServizio");
 	  // console.log(this.utils.getHighestRole(this.dutyRoles, newMember._roles), currentlyInServizio)
           // Se si vuole reinserire tra i lavoratori in servizio una volta cambiato il ruolo togliere il commento
+          this.utils.log({ badgeGuildId: this.guildId, content: ("TS[" + this.utils.getHalfSecond(Date.now() + (this.timezone * (60 * 60 * 1000))) + "]/TS") + ">A[SERVIZIO_ON]/A>ID[ID_" + newMember.user.id  + "]/ID>RID[ROLE_ID" + newHighestRoleId + "]/RID" })
           this.utils.updateGradiInServizio(newCurrentlyInServizio, { username: (newMember.nickname !== null ? newMember.nickname : newMember.user.username), id: newMember.user.id }, true)
-          this.utils.updateMessageField(this.embedMessage, newCurrentRole, newCurrentlyInServizio);
+          this.utils.updateMessageField(this.embedMessage, newCurrentRole.get("name"), newCurrentlyInServizio);
         }
       }
     }
-    if (oldMember.nickname !== newMember.nickname) {
+    /*if (oldMember.nickname !== newMember.nickname) {
       this.utils.updateGradiInServizio(currentlyInServizio, { username: (oldMember.nickname !== null ? oldMember.nickname : oldMember.user.username), id: oldMember.user.id }, false, this.logChannel)
       // Se si vuole reinserire tra i lavoratori in servizio una volta cambiato il nickname togliere il commento
       this.utils.updateGradiInServizio(currentlyInServizio, { username: (newMember.nickname !== null ? newMember.nickname : newMember.user.username), id: newMember.user.id }, true)
       this.utils.updateMessageField(this.embedMessage, newCurrentRole, currentlyInServizio);
-    }
+    }*/
   }
 
   handleRoleUpdate(role) {
     if (role != undefined) { this.utils.getElemByFieldValue(this.dutyRoles, "id", role.id).name = role.name; this.mySQLManager.updateGuildSettingsById(this.guildId, this.badgeGuildSettings.getJSONString()); }
     this.utils.updateEmbedFields(this.dutyRoles, this.currentServer.roles.cache, this.embedMessage);
+  }
+
+  handleDayChange() {
+    var oldMillis = this.utils.getClearedTime((new Date(Date.now() - 7200000)).getTime(), "day") + 86399000;
+    var oldDay = new Date(oldMillis);
+
+    var currentMillis = this.utils.getClearedTime(new Date(Date.now() + this.timezone * (60 * 60 * 1000)), "day");
+    var currentDay = new Date(currentMillis);
+
+    for (var dutyRole of this.dutyRoles.keys()) {
+      for (var user of this.dutyRoles.get(dutyRole).get("inServizio")) {
+        this.utils.log({ date: oldDay, badgeGuildId: this.guildId, content: ("TS[" + oldMillis + "]/TS") + ">A[SERVIZIO_OFF]/A>ID[ID_" + user.id  + "]/ID>RID[ROLE_ID" + dutyRole + "]/RID" + ">CAUSE[AUTO_GEN-NEW_DAY]/CAUSE" })
+      }
+      for (var user of this.dutyRoles.get(dutyRole).get("inServizio")) {
+        this.utils.log({ date: currentDay, badgeGuildId: this.guildId, content: ("TS[" + currentMillis + "]/TS") + ">A[SERVIZIO_ON]/A>ID[ID_" + user.id  + "]/ID>RID[ROLE_ID" + dutyRole + "]/RID" + ">CAUSE[AUTO_GEN-NEW_DAY]/CAUSE" })
+      }
+    } 
   }
 
 }
