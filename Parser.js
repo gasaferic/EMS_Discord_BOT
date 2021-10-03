@@ -69,6 +69,28 @@ class Parser {
             var millisMatch = line.match(/TS\[(.*)\]\/TS/);
             dailyMap.get(roleId).get(userId).set(millisMatch[1], action);
         }
+
+        for (var role of dailyMap.keys()) {
+            var currentRoleTimestamps = dailyMap.get(role);
+            for (var user of currentRoleTimestamps.keys()) {
+                currentRoleTimestamps.set(user, new Map([...currentRoleTimestamps.get(user).entries()].sort((firstTimestamp, secondTimestamp) => parseInt(firstTimestamp) - parseInt(secondTimestamp))));
+                var entries = [...currentRoleTimestamps.get(user).entries()];
+                var firstElem = entries[0];
+                if (firstElem[1] == "SERVIZIO_OFF") {
+                    currentRoleTimestamps.get(user).set("" + this.utils.getClearedTime(parseInt(firstElem), "day").getTime(), "SERVIZIO_ON");
+                    currentRoleTimestamps.set(user, new Map([...currentRoleTimestamps.get(user).entries()].sort((firstTimestamp, secondTimestamp) => parseInt(firstTimestamp) - parseInt(secondTimestamp))));
+                }
+                if (currentRoleTimestamps.get(user).size % 2 != 0) {
+                    var entries = [...currentRoleTimestamps.get(user).entries()];
+                    var lastElem = entries[currentRoleTimestamps.get(user).size - 1];
+                    if (lastElem[1] == "SERVIZIO_ON") {
+                        currentRoleTimestamps.get(user).set("" + (this.utils.getClearedTime(parseInt(firstElem), "day").getTime() + 86399000), "SERVIZIO_OFF");
+                        currentRoleTimestamps.set(user, new Map([...currentRoleTimestamps.get(user).entries()].sort((firstTimestamp, secondTimestamp) => parseInt(firstTimestamp) - parseInt(secondTimestamp))));
+                    }
+                }
+            }
+        }
+
         if (data.parsedDataMap) {
             fs.unlinkSync(this.outputDir + "/" + data.fileName.replace("txt", "json"));
         }
