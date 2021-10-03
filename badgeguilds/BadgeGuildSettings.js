@@ -24,7 +24,7 @@ class GuildSettings {
     }
 
     getJSONString() {
-        return this.utils.getJSONFromMap(this.getMapFullClone(this.settings));
+        return this.utils.getJSONFromMap(this.utils.getMapFullClone(this.settings));
     }
 }
 
