@@ -225,11 +225,11 @@ class BadgeGuild {
     for (var dutyRole of this.dutyRoles.keys()) {
       for (var user of this.dutyRoles.get(dutyRole).get("inServizio")) {
         this.utils.log({ date: oldDay, badgeGuildId: this.guildId, content: ("TS[" + oldMillis + "]/TS") + ">A[SERVIZIO_OFF]/A>ID[ID_" + user.id  + "]/ID>RID[ROLE_ID" + dutyRole + "]/RID" + ">CAUSE[AUTO_GEN-NEW_DAY]/CAUSE" })
-      }
-      for (var user of this.dutyRoles.get(dutyRole).get("inServizio")) {
         this.utils.log({ date: currentDay, badgeGuildId: this.guildId, content: ("TS[" + currentMillis + "]/TS") + ">A[SERVIZIO_ON]/A>ID[ID_" + user.id  + "]/ID>RID[ROLE_ID" + dutyRole + "]/RID" + ">CAUSE[AUTO_GEN-NEW_DAY]/CAUSE" })
       }
-    } 
+    }
+
+    this.parser.parseLog(oldDay);
   }
 
 }
